@@ -121,6 +121,7 @@ validator pool(husd_policy: ScriptHash) {
           )
         expect price_oracle_redeemer: PriceOracleRedeemer = price_redeemer
         expect PriceOracleRedeemer { price } = price_oracle_redeemer
+        expect PoolDatum { liabilities } = own_dat
         todo //must stay above min reserve ratio
         todo
       }
