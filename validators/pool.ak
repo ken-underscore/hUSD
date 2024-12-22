@@ -2,12 +2,15 @@ use aiken/collection/list.{has}
 use aiken/collection/pairs.{has_key}
 use aiken/crypto.{ScriptHash, VerificationKeyHash}
 use cardano/address.{Address, Credential, Inline, Script, VerificationKey}
-use cardano/assets.{Lovelace}
+use cardano/assets.{Lovelace, quantity_of}
 use cardano/transaction.{
-  InlineDatum, Input, Output, OutputReference, Transaction, find_input,
+  InlineDatum, Input, Output, OutputReference, Transaction, Withdraw, find_input,
 }
-use datums.{PoolDatum}
-use redeemers.{ClosePool, Deposit, Mint, PoolRedeemer, Withdraw}
+use datums.{HusdParamsDatum, PoolDatum}
+use redeemers.{
+  ClosePool, DepositCollateral, Mint, PoolRedeemer, PriceOracleRedeemer,
+  WithdrawCollateral,
+}
 use utils.{staking_cred_approves}
 
 validator pool(husd_policy: ScriptHash) {
@@ -18,8 +21,8 @@ validator pool(husd_policy: ScriptHash) {
     self: Transaction,
   ) {
     when redeemer is {
-      //lovelace must increase, datum must not change
-      Deposit -> {
+      //lovelace must increase, datum must not change, beacon must return
+      DepositCollateral -> {
         let Transaction { inputs, outputs, .. } = self
         expect Some(Input(_, Output(own_addr, own_val, ..))) =
           find_input(inputs, own_ref)
@@ -48,10 +51,17 @@ validator pool(husd_policy: ScriptHash) {
         expect assets.lovelace_of(out_val) > assets.lovelace_of(own_val)
         True
       }
-      //lovelace must decrease, datum must not change, staking key must sign, must stay above minimum reserve ratio, price oracle validator must succeed
-      Withdraw -> {
-        let Transaction { inputs, outputs, extra_signatories, withdrawals, .. } =
-          self
+      //lovelace must decrease, datum must not change, beacon token must return, staking key must sign, must stay above minimum reserve ratio, price oracle validator must succeed
+      WithdrawCollateral -> {
+        let Transaction {
+          inputs,
+          outputs,
+          extra_signatories,
+          withdrawals,
+          reference_inputs,
+          redeemers,
+          ..
+        } = self
         expect Some(Input(_, Output(own_addr, own_val, ..))) =
           find_input(inputs, own_ref)
         expect Address(Script(script_hash), _) = own_addr
@@ -79,7 +89,38 @@ validator pool(husd_policy: ScriptHash) {
         expect assets.lovelace_of(out_val) < assets.lovelace_of(own_val)
         //staking key must sign
         expect staking_cred_approves(own_addr, extra_signatories, withdrawals)
-        todo //price oracle validator must succeed
+        //price oracle validator withdrawal present
+        expect [Input(_, Output(_, _, InlineDatum(husd_datum), _))] =
+          list.filter(
+            reference_inputs,
+            fn(input) {
+              quantity_of(input.output.value, husd_policy, "husd_params") == 1
+            },
+          )
+        expect husd_dat: HusdParamsDatum = husd_datum
+        expect Some(Pair(price_oracle_cred, _)) =
+          list.find(
+            withdrawals,
+            fn(Pair(cred, _)) {
+              when cred is {
+                Script(price_oracle_hash) ->
+                  price_oracle_hash == husd_dat.price_oracle_hash
+                _other -> False
+              }
+            },
+          )
+        expect Some(Pair(_, price_redeemer)) =
+          list.find(
+            redeemers,
+            fn(Pair(purpose, _)) {
+              when purpose is {
+                Withdraw(cred) -> cred == price_oracle_cred
+                _other -> False
+              }
+            },
+          )
+        expect price_oracle_redeemer: PriceOracleRedeemer = price_redeemer
+        expect PriceOracleRedeemer { price } = price_oracle_redeemer
         todo //must stay above min reserve ratio
         todo
       }

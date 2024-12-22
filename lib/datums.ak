@@ -1,5 +1,9 @@
-use aiken/crypto.{VerificationKeyHash}
+use aiken/crypto.{ScriptHash, VerificationKeyHash}
 
 pub type PoolDatum {
-  owner: VerificationKeyHash,
+  liabilities: Int,
+}
+
+pub type HusdParamsDatum {
+  price_oracle_hash: ScriptHash,
 }

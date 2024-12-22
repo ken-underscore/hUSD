@@ -1,6 +1,6 @@
 pub type PoolRedeemer {
-  Deposit
-  Withdraw
+  DepositCollateral
+  WithdrawCollateral
   Mint
   ClosePool
 }
@@ -10,6 +10,7 @@ pub type PriceOracleRedeemer {
 }
 
 pub type PolicyRedeemer {
+  MintGovernanceBeacon
   MintBeacon
   MintStable
 }
