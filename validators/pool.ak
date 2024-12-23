@@ -1,6 +1,7 @@
 use aiken/collection/list.{has}
 use aiken/collection/pairs.{has_key}
 use aiken/crypto.{ScriptHash, VerificationKeyHash}
+use aiken/math/rational.{compare_with}
 use cardano/address.{Address, Credential, Inline, Script, VerificationKey}
 use cardano/assets.{Lovelace, quantity_of}
 use cardano/transaction.{
@@ -12,6 +13,8 @@ use redeemers.{
   WithdrawCollateral,
 }
 use utils.{staking_cred_approves}
+
+pub const micros_conversion_factor = 1_000_000
 
 validator pool(husd_policy: ScriptHash) {
   spend(
@@ -37,7 +40,7 @@ validator pool(husd_policy: ScriptHash) {
           out_val
             |> assets.flatten()
             |> list.length()
-        //verify beacon is present in the utxo receiving the deposit and the output to the script
+        //verify beacon is present in input and output to script
         expect assets.quantity_of(own_val, husd_policy, script_hash) == 1
         expect assets.quantity_of(out_val, husd_policy, script_hash) == 1
         //lovelace and the beacon token must be the only assets
@@ -51,7 +54,7 @@ validator pool(husd_policy: ScriptHash) {
         expect assets.lovelace_of(out_val) > assets.lovelace_of(own_val)
         True
       }
-      //lovelace must decrease, datum must not change, beacon token must return, staking key must sign, must stay above minimum reserve ratio, price oracle validator must succeed
+      //lovelace must decrease, datum must not change, beacon token must return, staking key must sign, price oracle validator present, must stay above minimum reserve ratio
       WithdrawCollateral -> {
         let Transaction {
           inputs,
@@ -75,7 +78,7 @@ validator pool(husd_policy: ScriptHash) {
           out_val
             |> assets.flatten()
             |> list.length()
-        //verify beacon is present in the utxo receiving the deposit and the output to the script
+        //verify beacon is present in input and output to script
         expect assets.quantity_of(own_val, husd_policy, script_hash) == 1
         expect assets.quantity_of(out_val, husd_policy, script_hash) == 1
         //lovelace and the beacon token must be the only assets
@@ -86,7 +89,8 @@ validator pool(husd_policy: ScriptHash) {
         expect out_dat: PoolDatum = out_datum
         expect own_dat == out_dat
         //output must have less lovelace
-        expect assets.lovelace_of(out_val) < assets.lovelace_of(own_val)
+        let new_collateral_total = assets.lovelace_of(out_val)
+        expect new_collateral_total < assets.lovelace_of(own_val)
         //staking key must sign
         expect staking_cred_approves(own_addr, extra_signatories, withdrawals)
         //price oracle validator withdrawal present
@@ -97,18 +101,19 @@ validator pool(husd_policy: ScriptHash) {
               quantity_of(input.output.value, husd_policy, "husd_params") == 1
             },
           )
-        expect husd_dat: HusdParamsDatum = husd_datum
+        expect HusdParamsDatum { price_oracle_hash, min_reserve_ratio } =
+          husd_datum
         expect Some(Pair(price_oracle_cred, _)) =
           list.find(
             withdrawals,
             fn(Pair(cred, _)) {
               when cred is {
-                Script(price_oracle_hash) ->
-                  price_oracle_hash == husd_dat.price_oracle_hash
+                Script(hash) -> hash == price_oracle_hash
                 _other -> False
               }
             },
           )
+        //must stay above min reserve ratio
         expect Some(Pair(_, price_redeemer)) =
           list.find(
             redeemers,
@@ -119,11 +124,16 @@ validator pool(husd_policy: ScriptHash) {
               }
             },
           )
-        expect price_oracle_redeemer: PriceOracleRedeemer = price_redeemer
-        expect PriceOracleRedeemer { price } = price_oracle_redeemer
-        expect PoolDatum { liabilities } = own_dat
-        todo //must stay above min reserve ratio
-        todo
+        expect PriceOracleRedeemer { price } = price_redeemer
+        let PoolDatum { liabilities } = own_dat
+        let liabilities_in_lovelace =
+          liabilities * price / micros_conversion_factor
+        expect Some(new_reserve_ratio) =
+          rational.new(new_collateral_total, liabilities_in_lovelace)
+        expect Some(min_reserve_ratio) =
+          rational.new(min_reserve_ratio.1st, min_reserve_ratio.2nd)
+        expect rational.compare_with(new_reserve_ratio, >=, min_reserve_ratio)
+        True
       }
       Mint -> fail
       ClosePool -> fail
