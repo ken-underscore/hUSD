@@ -15,6 +15,7 @@ validator policy(init_utxo: OutputReference) {
       MintGovernanceBeacon -> todo
       //beacon must go to pool script + stake addr, staking key must sign
       MintBeacon -> todo
+      //all mint/burn pool redeemers that are associated with a pool script must total to the mint total
       MintStable -> todo
     }
   }

@@ -3,6 +3,7 @@ use core.{Fraction}
 
 pub type PoolDatum {
   liabilities: Int,
+  locked_until: Int,
 }
 
 pub type HusdParamsDatum {

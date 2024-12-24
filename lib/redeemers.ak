@@ -1,7 +1,7 @@
 pub type PoolRedeemer {
   DepositCollateral
   WithdrawCollateral
-  Mint
+  MintHusd(Int)
   ClosePool
 }
 
