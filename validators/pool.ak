@@ -1,16 +1,15 @@
-use aiken/collection/list.{has}
-use aiken/collection/pairs.{has_key}
-use aiken/crypto.{ScriptHash, VerificationKeyHash}
-use aiken/math/rational.{compare_with}
-use cardano/address.{Address, Credential, Inline, Script, VerificationKey}
-use cardano/assets.{Lovelace, quantity_of}
+use aiken/collection/list
+use aiken/crypto.{ScriptHash}
+use aiken/math/rational
+use cardano/address.{Address, Script}
+use cardano/assets.{quantity_of}
 use cardano/transaction.{
   InlineDatum, Input, Mint, Output, OutputReference, Transaction, Withdraw,
   find_input,
 }
 use datums.{HusdParamsDatum, PoolDatum}
 use redeemers.{
-  ClosePool, DepositCollateral, MintHusd, MintStable, PolicyRedeemer,
+  ClosePool, DepositCollateral, MintBeacon, MintHusd, MintStable, PolicyRedeemer,
   PoolRedeemer, PriceOracleRedeemer, WithdrawCollateral,
 }
 use utils.{staking_cred_approves}
@@ -212,11 +211,11 @@ validator pool(husd_policy: ScriptHash) {
         expect
           list.any(
             redeemers,
-            fn(Pair(purpose, mint_redeemer)) {
+            fn(Pair(purpose, redeemer)) {
               when purpose is {
                 Mint(policy_id) ->
                   if policy_id == husd_policy {
-                    expect mint_redeemer: PolicyRedeemer = mint_redeemer
+                    expect mint_redeemer: PolicyRedeemer = redeemer
                     when mint_redeemer is {
                       MintStable -> True
                       _other -> False
@@ -241,8 +240,44 @@ validator pool(husd_policy: ScriptHash) {
           True
         }
       }
-      //staking key signs, beacon is burned, liabilities are 0
-      ClosePool -> fail
+      //staking key signs, liabilities are 0, husd policy is present with MintBeacon redeemer
+      ClosePool -> {
+        let Transaction {
+          inputs,
+          withdrawals,
+          redeemers,
+          extra_signatories,
+          ..
+        } = self
+        expect Some(Input(_, Output(own_addr, ..))) =
+          find_input(inputs, own_ref)
+        //staking key must sign
+        expect staking_cred_approves(own_addr, extra_signatories, withdrawals)
+        //liabilities are 0
+        expect Some(PoolDatum(liabilities, _)) = datum
+        expect liabilities == 0
+        //husd policy is present with MintBeacon redeemer
+        expect
+          list.any(
+            redeemers,
+            fn(Pair(purpose, redeemer)) {
+              when purpose is {
+                Mint(policy_id) ->
+                  if policy_id == husd_policy {
+                    expect mint_redeemer: PolicyRedeemer = redeemer
+                    when mint_redeemer is {
+                      MintBeacon -> True
+                      _other -> False
+                    }
+                  } else {
+                    False
+                  }
+                _other -> False
+              }
+            },
+          )
+        True
+      }
     }
   }
 
