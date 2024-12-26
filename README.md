@@ -5,6 +5,7 @@
 - No project token
 - No rent-seeking fees
 - Straightforward protocol
+- Composable
 - Scales with users
 - Governed by the people using it
 
@@ -26,6 +27,7 @@ Advantages:
 - Since hUSD can be redeemed at any time regardless of a pool's reserve ratio, hUSD should be very good at maintaining its peg on the open market
 - No collateral pooling means collateral providers continue to maintain staking/voting rights over their ada and there is no need for a secondary token such as Shen is for Djed
 - Collateral providers are not "locked" in by a drop in the reserve ratio like in Djed, a pool can be closed by the provider at any time by redeeming the outstanding amount of stablecoins the pool owes in liabilities
+- Composable with other defi, since it doesn't have contention issues or require a batcher and anyone can mint/burn you can compose this with arbitrage opportunities on dex's in the same transaction. This also makes it possible to integrate directly into dex aggregators to act as a floor price when the market swings one way
 
 Disadvantages:
 
