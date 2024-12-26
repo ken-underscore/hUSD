@@ -101,7 +101,7 @@ validator pool(husd_policy: ScriptHash) {
               quantity_of(input.output.value, husd_policy, "husd_params") == 1
             },
           )
-        expect HusdParamsDatum { price_oracle_hash, min_reserve_ratio } =
+        expect HusdParamsDatum { price_oracle_hash, min_reserve_ratio, .. } =
           husd_datum
         expect Some(Pair(price_oracle_cred, _)) =
           list.find(
@@ -172,14 +172,14 @@ validator pool(husd_policy: ScriptHash) {
           PoolDatum { liabilities: own_dat.liabilities, locked_until }
         expect own_dat == expected_dat
         //price oracle validator withdrawal present
-        expect [Input(_, Output(_, _, InlineDatum(husd_datum), _))] =
-          list.filter(
+        expect Some(Input(_, Output(_, _, InlineDatum(husd_datum), _))) =
+          list.find(
             reference_inputs,
             fn(input) {
               quantity_of(input.output.value, husd_policy, "husd_params") == 1
             },
           )
-        expect HusdParamsDatum { price_oracle_hash, min_reserve_ratio } =
+        expect HusdParamsDatum { price_oracle_hash, min_reserve_ratio, .. } =
           husd_datum
         expect Some(Pair(price_oracle_cred, _)) =
           list.find(
