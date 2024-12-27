@@ -45,20 +45,20 @@ validator policy(init_utxo: OutputReference) {
                       if hash == pool_script {
                         expect mint_redeemer: PoolRedeemer = redeemer
                         when mint_redeemer is {
-                          MintHusd(amount) -> amount
-                          _other -> 0
+                          MintHusd(amount) -> total + amount
+                          _other -> total
                         }
                       } else {
-                        0
+                        total
                       }
-                    _other -> 0
+                    _other -> total
                   }
                 }
-                _other -> 0
+                _other -> total
               }
             },
           )
-        //mint value must matche total of pool script mints
+        //mint value must match total of pool script mints
         expect quantity_of(mint, policy_id, "HUSD") == total_expected_mint
         True
       }
