@@ -1,3 +1,4 @@
+use aiken/collection/dict
 use aiken/collection/list.{has}
 use aiken/collection/pairs.{has_key}
 use aiken/crypto.{ScriptHash, VerificationKeyHash}
@@ -8,8 +9,8 @@ use cardano/transaction.{
 }
 use datums.{HusdParamsDatum}
 use redeemers.{
-  MintBeacon, MintGovernanceBeacon, MintHusd, MintStable, PolicyRedeemer,
-  PoolRedeemer,
+  ClosePool, MintBeacon, MintGovernanceBeacon, MintHusd, MintStable,
+  PolicyRedeemer, PoolRedeemer,
 }
 
 validator policy(init_utxo: OutputReference) {
@@ -18,7 +19,68 @@ validator policy(init_utxo: OutputReference) {
       //can only be minted if inputs contain init_utxo
       MintGovernanceBeacon -> todo
       //beacon must go to pool script + stake addr, staking key must sign
-      MintBeacon -> todo
+      MintBeacon -> {
+        let Transaction {
+          inputs,
+          reference_inputs,
+          outputs,
+          mint,
+          withdrawals,
+          extra_signatories,
+          redeemers,
+          ..
+        } = transaction
+        expect Some(Input(_, Output(_, _, InlineDatum(husd_datum), _))) =
+          list.find(
+            reference_inputs,
+            fn(input) {
+              quantity_of(input.output.value, policy_id, "husd_params") == 1
+            },
+          )
+        expect HusdParamsDatum { pool_script, .. } = husd_datum
+        let beacon_burn_total = 0
+        let stable_mint_total =
+          list.foldl(
+            redeemers,
+            0,
+            fn(Pair(purpose, redeemer), total) {
+              when purpose is {
+                Spend(out_ref) -> {
+                  expect Some(Input(_, Output(Address(cred, _), ..))) =
+                    find_input(inputs, out_ref)
+                  when cred is {
+                    Script(hash) ->
+                      if hash == pool_script {
+                        expect mint_redeemer: PoolRedeemer = redeemer
+                        when mint_redeemer is {
+                          MintHusd(amount) -> total + amount
+                          ClosePool -> {
+                            let beacon_burn_total = beacon_burn_total + 1
+                            total
+                          }
+                          _other -> total
+                        }
+                      } else {
+                        total
+                      }
+                    _other -> total
+                  }
+                }
+                _other -> total
+              }
+            },
+          )
+        let husd_tokens = assets.tokens(mint, policy_id)
+        let correct_stable_total =
+          when dict.get(husd_tokens, "HUSD") is {
+            Some(amount) -> amount == stable_mint_total
+            None -> True
+          }
+        // let correct_beacon_total = when dict.get(husd_tokens, pool_script) is {
+        //   Some(amount) -> 
+        // }
+        True
+      }
       //mint value must matche total of pool script mints
       MintStable -> {
         let Transaction { inputs, reference_inputs, mint, redeemers, .. } =
