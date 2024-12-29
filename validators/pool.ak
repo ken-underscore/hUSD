@@ -9,8 +9,8 @@ use cardano/transaction.{
 }
 use datums.{HusdParamsDatum, PoolDatum}
 use redeemers.{
-  ClosePool, DepositCollateral, MintBeacon, MintHusd, MintStable, PolicyRedeemer,
-  PoolRedeemer, PriceOracleRedeemer, WithdrawCollateral,
+  ClosePool, DepositCollateral, MintHusd, PoolRedeemer, PriceOracleRedeemer,
+  WithdrawCollateral,
 }
 use utils.{staking_cred_approves}
 
@@ -92,7 +92,12 @@ validator pool(husd_policy: ScriptHash) {
         let new_collateral_total = assets.lovelace_of(out_val)
         expect new_collateral_total < assets.lovelace_of(own_val)
         //staking key must sign
-        expect staking_cred_approves(own_addr, extra_signatories, withdrawals)
+        expect
+          staking_cred_approves(
+            own_addr.stake_credential,
+            extra_signatories,
+            withdrawals,
+          )
         //price oracle validator withdrawal present
         expect [Input(_, Output(_, _, InlineDatum(husd_datum), _))] =
           list.filter(
@@ -125,7 +130,7 @@ validator pool(husd_policy: ScriptHash) {
             },
           )
         expect PriceOracleRedeemer { price } = price_redeemer
-        let PoolDatum(liabilities, _) = out_dat
+        let PoolDatum(liabilities, ..) = out_dat
         let liabilities_in_lovelace =
           liabilities * price / micros_conversion_factor
         expect Some(new_reserve_ratio) =
@@ -166,10 +171,14 @@ validator pool(husd_policy: ScriptHash) {
         expect own_asset_count == 2
         //datum must be correctly updated
         expect Some(own_dat) = datum
-        expect PoolDatum(liabilities, locked_until) = out_datum
+        expect PoolDatum(liabilities, locked_until, created_at) = out_datum
         expect liabilities - own_dat.liabilities == mint_amount
         let expected_dat =
-          PoolDatum { liabilities: own_dat.liabilities, locked_until }
+          PoolDatum {
+            liabilities: own_dat.liabilities,
+            locked_until,
+            created_at,
+          }
         expect own_dat == expected_dat
         //price oracle validator withdrawal present
         expect Some(Input(_, Output(_, _, InlineDatum(husd_datum), _))) =
@@ -207,22 +216,13 @@ validator pool(husd_policy: ScriptHash) {
         let collateral_change =
           new_collateral_total - assets.lovelace_of(own_val)
         expect collateral_change / price == mint_amount
-        //husd policy is present with MintStable redeemer
+        //husd policy is present
         expect
           list.any(
             redeemers,
-            fn(Pair(purpose, redeemer)) {
+            fn(Pair(purpose, _)) {
               when purpose is {
-                Mint(policy_id) ->
-                  if policy_id == husd_policy {
-                    expect mint_redeemer: PolicyRedeemer = redeemer
-                    when mint_redeemer is {
-                      MintStable -> True
-                      _other -> False
-                    }
-                  } else {
-                    False
-                  }
+                Mint(policy_id) -> policy_id == husd_policy
                 _other -> False
               }
             },
@@ -252,26 +252,22 @@ validator pool(husd_policy: ScriptHash) {
         expect Some(Input(_, Output(own_addr, ..))) =
           find_input(inputs, own_ref)
         //staking key must sign
-        expect staking_cred_approves(own_addr, extra_signatories, withdrawals)
+        expect
+          staking_cred_approves(
+            own_addr.stake_credential,
+            extra_signatories,
+            withdrawals,
+          )
         //liabilities are 0
-        expect Some(PoolDatum(liabilities, _)) = datum
+        expect Some(PoolDatum(liabilities, ..)) = datum
         expect liabilities == 0
-        //husd policy is present with MintBeacon redeemer
+        //husd policy is present
         expect
           list.any(
             redeemers,
-            fn(Pair(purpose, redeemer)) {
+            fn(Pair(purpose, _)) {
               when purpose is {
-                Mint(policy_id) ->
-                  if policy_id == husd_policy {
-                    expect mint_redeemer: PolicyRedeemer = redeemer
-                    when mint_redeemer is {
-                      MintBeacon -> True
-                      _other -> False
-                    }
-                  } else {
-                    False
-                  }
+                Mint(policy_id) -> policy_id == husd_policy
                 _other -> False
               }
             },

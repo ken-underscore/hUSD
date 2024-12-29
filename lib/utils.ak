@@ -1,16 +1,18 @@
 use aiken/collection/list.{has}
 use aiken/collection/pairs.{has_key}
 use aiken/crypto.{VerificationKeyHash}
-use cardano/address.{Address, Credential, Inline, Script, VerificationKey}
+use cardano/address.{
+  Address, Credential, Inline, Script, StakeCredential, VerificationKey,
+}
 use cardano/assets.{Lovelace}
 
 pub fn staking_cred_approves(
-  addr: Address,
+  stake_cred: Option<StakeCredential>,
   extra_signatories: List<VerificationKeyHash>,
   withdrawals: Pairs<Credential, Lovelace>,
 ) -> Bool {
-  when addr.stake_credential is {
-    None -> True
+  when stake_cred is {
+    None -> False
     Some(ref_cred) ->
       when ref_cred is {
         Inline(cred) ->

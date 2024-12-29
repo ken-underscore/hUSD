@@ -8,9 +8,3 @@ pub type PoolRedeemer {
 pub type PriceOracleRedeemer {
   price: Int,
 }
-
-pub type PolicyRedeemer {
-  MintGovernanceBeacon
-  MintBeacon
-  MintStable
-}
