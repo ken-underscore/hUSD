@@ -8,3 +8,7 @@ pub type PoolRedeemer {
 pub type PriceOracleRedeemer {
   price: Int,
 }
+
+pub type ResolvedOraclePrice {
+  price: Int,
+}

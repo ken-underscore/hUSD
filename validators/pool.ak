@@ -12,7 +12,7 @@ use redeemers.{
   ClosePool, DepositCollateral, MintHusd, PoolRedeemer, PriceOracleRedeemer,
   WithdrawCollateral,
 }
-use utils.{staking_cred_approves}
+use utils.{get_husd_params, staking_cred_approves}
 
 pub const micros_conversion_factor = 1_000_000
 
@@ -99,15 +99,8 @@ validator pool(husd_policy: ScriptHash) {
             withdrawals,
           )
         //price oracle validator withdrawal present
-        expect [Input(_, Output(_, _, InlineDatum(husd_datum), _))] =
-          list.filter(
-            reference_inputs,
-            fn(input) {
-              quantity_of(input.output.value, husd_policy, "husd_params") == 1
-            },
-          )
-        expect HusdParamsDatum { price_oracle_hash, min_reserve_ratio, .. } =
-          husd_datum
+        let HusdParamsDatum { price_oracle_hash, min_reserve_ratio, .. } =
+          get_husd_params(reference_inputs, husd_policy)
         expect Some(Pair(price_oracle_cred, _)) =
           list.find(
             withdrawals,
@@ -181,15 +174,9 @@ validator pool(husd_policy: ScriptHash) {
           }
         expect own_dat == expected_dat
         //price oracle validator withdrawal present
-        expect Some(Input(_, Output(_, _, InlineDatum(husd_datum), _))) =
-          list.find(
-            reference_inputs,
-            fn(input) {
-              quantity_of(input.output.value, husd_policy, "husd_params") == 1
-            },
-          )
-        expect HusdParamsDatum { price_oracle_hash, min_reserve_ratio, .. } =
-          husd_datum
+        //price oracle validator withdrawal present
+        let HusdParamsDatum { price_oracle_hash, min_reserve_ratio, .. } =
+          get_husd_params(reference_inputs, husd_policy)
         expect Some(Pair(price_oracle_cred, _)) =
           list.find(
             withdrawals,

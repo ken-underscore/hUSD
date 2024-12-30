@@ -4,7 +4,11 @@ use aiken/crypto.{VerificationKeyHash}
 use cardano/address.{
   Address, Credential, Inline, Script, StakeCredential, VerificationKey,
 }
-use cardano/assets.{Lovelace}
+use cardano/assets.{Lovelace, PolicyId, quantity_of}
+use cardano/transaction.{
+  InlineDatum, Input, Output, OutputReference, Spend, Transaction, find_input,
+}
+use datums.{HusdParamsDatum, PoolDatum}
 
 pub fn staking_cred_approves(
   stake_cred: Option<StakeCredential>,
@@ -23,4 +27,19 @@ pub fn staking_cred_approves(
         _pointer -> fail @"Pointer address not supported"
       }
   }
+}
+
+pub fn get_husd_params(
+  ref_inputs: List<Input>,
+  policy_id: PolicyId,
+) -> HusdParamsDatum {
+  expect Some(Input(_, Output(_, _, InlineDatum(husd_datum), _))) =
+    list.find(
+      ref_inputs,
+      fn(input) {
+        quantity_of(input.output.value, policy_id, "husd_params") == 1
+      },
+    )
+  expect params: HusdParamsDatum = husd_datum
+  params
 }

@@ -10,7 +10,7 @@ use cardano/transaction.{
 }
 use datums.{HusdParamsDatum, PoolDatum}
 use redeemers.{ClosePool, MintHusd, PoolRedeemer}
-use utils.{staking_cred_approves}
+use utils.{get_husd_params, staking_cred_approves}
 
 validator husd_policy {
   mint(_redeemer: Data, policy_id: PolicyId, transaction: Transaction) {
@@ -26,14 +26,8 @@ validator husd_policy {
       id,
       ..
     } = transaction
-    expect Some(Input(_, Output(_, _, InlineDatum(husd_datum), _))) =
-      list.find(
-        reference_inputs,
-        fn(input) {
-          quantity_of(input.output.value, policy_id, "husd_params") == 1
-        },
-      )
-    expect HusdParamsDatum { pool_script, .. } = husd_datum
+    let HusdParamsDatum { pool_script, .. } =
+      get_husd_params(reference_inputs, policy_id)
     //find the expected mints based on redeemers from pool_script
     let (expected_stable_mint, expected_beacon_mint) =
       list.foldl(
