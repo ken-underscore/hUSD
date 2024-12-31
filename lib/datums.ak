@@ -9,7 +9,7 @@ pub type PoolDatum {
 }
 
 pub type HusdParamsDatum {
-  price_oracle_hash: ScriptHash,
+  price_oracle_aggregator_hash: ScriptHash,
   min_reserve_ratio: Fraction,
   pool_script: ScriptHash,
   price_oracles: List<ScriptHash>,

@@ -99,14 +99,17 @@ validator pool(husd_policy: ScriptHash) {
             withdrawals,
           )
         //price oracle validator withdrawal present
-        let HusdParamsDatum { price_oracle_hash, min_reserve_ratio, .. } =
-          get_husd_params(reference_inputs, husd_policy)
+        let HusdParamsDatum {
+          price_oracle_aggregator_hash,
+          min_reserve_ratio,
+          ..
+        } = get_husd_params(reference_inputs, husd_policy)
         expect Some(Pair(price_oracle_cred, _)) =
           list.find(
             withdrawals,
             fn(Pair(cred, _)) {
               when cred is {
-                Script(hash) -> hash == price_oracle_hash
+                Script(hash) -> hash == price_oracle_aggregator_hash
                 _other -> False
               }
             },
@@ -175,14 +178,17 @@ validator pool(husd_policy: ScriptHash) {
         expect own_dat == expected_dat
         //price oracle validator withdrawal present
         //price oracle validator withdrawal present
-        let HusdParamsDatum { price_oracle_hash, min_reserve_ratio, .. } =
-          get_husd_params(reference_inputs, husd_policy)
+        let HusdParamsDatum {
+          price_oracle_aggregator_hash,
+          min_reserve_ratio,
+          ..
+        } = get_husd_params(reference_inputs, husd_policy)
         expect Some(Pair(price_oracle_cred, _)) =
           list.find(
             withdrawals,
             fn(Pair(cred, _)) {
               when cred is {
-                Script(hash) -> hash == price_oracle_hash
+                Script(hash) -> hash == price_oracle_aggregator_hash
                 _other -> False
               }
             },
