@@ -116,3 +116,6 @@ validator husd_policy {
     fail
   }
 }
+
+pub type Context =
+  Data

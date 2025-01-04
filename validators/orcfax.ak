@@ -1,6 +1,7 @@
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
 use aiken/math/rational
+use aiken/primitive/bytearray
 use cardano/address.{Address, Credential, Script}
 use cardano/assets.{quantity_of}
 use cardano/transaction.{
@@ -8,13 +9,13 @@ use cardano/transaction.{
   find_input,
 }
 use orcfax/feed_id.{starts_with}
-use orcfax/rational.{Rational, RationalFsDat}
+use orcfax/rational.{Rational, RationalFsDat} as orcfax_rational
 use orcfax/tokens as orcfax_tokens
 use orcfax/types as orcfax_t
 use orcfax/validity_range.{get_bounds}
 use redeemers.{PriceOracleRedeemer}
 
-type Params {
+pub type Params {
   fsp_hash: ByteArray,
   currency: ByteArray,
   ada_is_base: Bool,
@@ -27,7 +28,7 @@ validator orcfax_oracle(params: Params) {
     transaction: Transaction,
   ) {
     let Params { fsp_hash, currency, ada_is_base } = params
-    let feed_id = tokens.mk_feed_id(currency, ada_is_base)
+    let feed_id = mk_feed_id(currency, ada_is_base)
     let Transaction {
       reference_inputs,
       validity_range,
@@ -44,7 +45,7 @@ validator orcfax_oracle(params: Params) {
             fn(i) {
               (
                 i.output.value
-                  |> value.quantity_of(fsp_hash, orcfax_tokens.fsp_vali())
+                  |> quantity_of(fsp_hash, orcfax_tokens.fsp_vali())
               ) == 1
             },
           )
@@ -57,9 +58,7 @@ validator orcfax_oracle(params: Params) {
       reference_inputs
         |> list.find(
             fn(i) {
-              (
-                i.output.value |> value.quantity_of(fs_hash, orcfax_tokens.fs())
-              ) == 1
+              ( i.output.value |> quantity_of(fs_hash, orcfax_tokens.fs()) ) == 1
             },
           )
     expect fs_dat: RationalFsDat = fs_idat
@@ -72,10 +71,22 @@ validator orcfax_oracle(params: Params) {
       ..
     } = fs_dat
 
+    // We want only the expected price feed 
+    expect feed_id_ |> starts_with(feed_id)
+
+    // End: Find Fs, and verify Statement
     True
   }
 
   else(_) {
     fail
+  }
+}
+
+pub fn mk_feed_id(currency: ByteArray, ada_is_base: Bool) -> ByteArray {
+  if ada_is_base {
+    "CER/ADA-" |> bytearray.concat(currency) |> bytearray.concat("/")
+  } else {
+    "CER/" |> bytearray.concat(currency) |> bytearray.concat("-ADA/")
   }
 }
