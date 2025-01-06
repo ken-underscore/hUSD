@@ -43,11 +43,3 @@ pub fn get_husd_params(
   expect params: HusdParamsDatum = husd_datum
   params
 }
-
-pub fn sum(xs: List<Int>) -> Int {
-  list.reduce(xs, 0, fn(total, x) { total + x })
-}
-
-pub fn average(xs: List<Int>) -> Int {
-  sum(xs) / list.length(xs)
-}

@@ -1,3 +1,5 @@
+use core.{Fraction}
+
 pub type PoolRedeemer {
   DepositCollateral
   WithdrawCollateral
@@ -6,9 +8,9 @@ pub type PoolRedeemer {
 }
 
 pub type PriceOracleRedeemer {
-  price: Int,
+  price: Fraction,
 }
 
 pub type ResolvedOraclePrice {
-  price: Int,
+  price: Fraction,
 }

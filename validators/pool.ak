@@ -126,11 +126,14 @@ validator pool(husd_policy: ScriptHash) {
             },
           )
         expect PriceOracleRedeemer { price } = price_redeemer
+        expect Some(usd_per_ada) = rational.new(price.1st, price.2nd)
         let PoolDatum(liabilities, ..) = out_dat
-        let liabilities_in_lovelace =
-          liabilities * price / micros_conversion_factor
+        expect Some(liabilities_in_lovelace) =
+          liabilities |> rational.from_int() |> rational.div(usd_per_ada)
         expect Some(new_reserve_ratio) =
-          rational.new(new_collateral_total, liabilities_in_lovelace)
+          new_collateral_total
+            |> rational.from_int()
+            |> rational.div(liabilities_in_lovelace)
         expect Some(min_reserve_ratio) =
           rational.new(min_reserve_ratio.1st, min_reserve_ratio.2nd)
         expect rational.compare_with(new_reserve_ratio, >=, min_reserve_ratio)
@@ -177,7 +180,6 @@ validator pool(husd_policy: ScriptHash) {
           }
         expect own_dat == expected_dat
         //price oracle validator withdrawal present
-        //price oracle validator withdrawal present
         let HusdParamsDatum {
           price_oracle_aggregator_hash,
           min_reserve_ratio,
@@ -205,10 +207,13 @@ validator pool(husd_policy: ScriptHash) {
             },
           )
         expect PriceOracleRedeemer { price } = price_redeemer
+        expect Some(usd_per_ada) = rational.new(price.1st, price.2nd)
         let new_collateral_total = assets.lovelace_of(out_val)
-        let collateral_change =
+        expect Some(expected_husd) =
           new_collateral_total - assets.lovelace_of(own_val)
-        expect collateral_change / price == mint_amount
+            |> rational.from_int()
+            |> rational.div(usd_per_ada)
+        expect rational.round(expected_husd) == mint_amount
         //husd policy is present
         expect
           list.any(
@@ -222,10 +227,12 @@ validator pool(husd_policy: ScriptHash) {
           )
         //if mint amount > 0 must stay above minimum reserve ratio
         if mint_amount > 0 {
-          let liabilities_in_lovelace =
-            liabilities * price / micros_conversion_factor
+          expect Some(liabilities_in_lovelace) =
+            liabilities |> rational.from_int() |> rational.div(usd_per_ada)
           expect Some(new_reserve_ratio) =
-            rational.new(new_collateral_total, liabilities_in_lovelace)
+            new_collateral_total
+              |> rational.from_int()
+              |> rational.div(liabilities_in_lovelace)
           expect Some(min_reserve_ratio) =
             rational.new(min_reserve_ratio.1st, min_reserve_ratio.2nd)
           rational.compare_with(new_reserve_ratio, >=, min_reserve_ratio)

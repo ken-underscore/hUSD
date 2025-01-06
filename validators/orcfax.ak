@@ -73,8 +73,10 @@ validator orcfax_oracle(params: Params) {
 
     // We want only the expected price feed 
     expect feed_id_ |> starts_with(feed_id)
-
     // End: Find Fs, and verify Statement
+    //oracle price must match redeemer
+    let PriceOracleRedeemer((price_num, price_denom)) = redeemer
+    expect num == price_num && denom == price_denom
     True
   }
 
