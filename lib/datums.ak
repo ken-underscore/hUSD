@@ -13,4 +13,5 @@ pub type HusdParamsDatum {
   min_reserve_ratio: Fraction,
   pool_script: ScriptHash,
   price_oracles: List<ScriptHash>,
+  minting_fee: Fraction,
 }

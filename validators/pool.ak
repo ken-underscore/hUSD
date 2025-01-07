@@ -183,6 +183,7 @@ validator pool(husd_policy: ScriptHash) {
         let HusdParamsDatum {
           price_oracle_aggregator_hash,
           min_reserve_ratio,
+          minting_fee,
           ..
         } = get_husd_params(reference_inputs, husd_policy)
         expect Some(Pair(price_oracle_cred, _)) =
@@ -191,6 +192,17 @@ validator pool(husd_policy: ScriptHash) {
             fn(Pair(cred, _)) {
               when cred is {
                 Script(hash) -> hash == price_oracle_aggregator_hash
+                _other -> False
+              }
+            },
+          )
+        //husd policy is present
+        expect
+          list.any(
+            redeemers,
+            fn(Pair(purpose, _)) {
+              when purpose is {
+                Mint(policy_id) -> policy_id == husd_policy
                 _other -> False
               }
             },
@@ -208,23 +220,24 @@ validator pool(husd_policy: ScriptHash) {
           )
         expect PriceOracleRedeemer { price } = price_redeemer
         expect Some(usd_per_ada) = rational.new(price.1st, price.2nd)
+        expect Some(minting_fee) =
+          rational.new(minting_fee.1st, minting_fee.2nd)
         let new_collateral_total = assets.lovelace_of(out_val)
-        expect Some(expected_husd) =
+        let change_in_collateral =
           new_collateral_total - assets.lovelace_of(own_val)
             |> rational.from_int()
+        let fee_adjustment =
+          if mint_amount > 0 {
+            rational.from_int(1) |> rational.add(minting_fee)
+          } else {
+            rational.from_int(1) |> rational.sub(minting_fee)
+          }
+        expect Some(adjusted_change_in_collateral) =
+          rational.div(change_in_collateral, fee_adjustment)
+        expect Some(expected_husd) =
+          adjusted_change_in_collateral
             |> rational.div(usd_per_ada)
         expect rational.round(expected_husd) == mint_amount
-        //husd policy is present
-        expect
-          list.any(
-            redeemers,
-            fn(Pair(purpose, _)) {
-              when purpose is {
-                Mint(policy_id) -> policy_id == husd_policy
-                _other -> False
-              }
-            },
-          )
         //if mint amount > 0 must stay above minimum reserve ratio
         if mint_amount > 0 {
           expect Some(liabilities_in_lovelace) =
